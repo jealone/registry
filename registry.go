@@ -22,10 +22,25 @@ func GetRegistry() *Registry {
 type Registry struct {
 	Drivers map[string]Driver
 	mu      sync.RWMutex
+
+	Closers []Closer
+	cmu     sync.RWMutex
+}
+
+type Closer interface {
+	Close() error
 }
 
 type Decoder interface {
 	Decode(interface{}) error
+}
+
+func (r *Registry) RegisterCloser(cl Closer) error {
+	r.cmu.Lock()
+	defer r.cmu.Unlock()
+
+	r.Closers = append(r.Closers, cl)
+	return nil
 }
 
 func (r *Registry) RegisterDriver(typ string, dec Decoder) (Driver, error) {
@@ -76,6 +91,15 @@ func (r *Registry) GetDriver(name string) Driver {
 func (r *Registry) Bootstrap() {
 	for _, driver := range r.Drivers {
 		driver.Boot()
+	}
+}
+
+func (r *Registry) Close() error {
+	r.cmu.RLock()
+	defer r.cmu.RUnlock()
+
+	for _, c := range r.Closers {
+		c.Close()
 	}
 }
 
