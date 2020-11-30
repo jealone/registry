@@ -91,7 +91,9 @@ func InitRegistry(opts ...func() (*Registry, error)) error {
 
 		once.Do(func() {
 			defaultRegistry = &Registry{}
+			defaultRegistry.Drivers = make(map[string]Driver)
 		})
+
 		return nil
 
 	} else {
