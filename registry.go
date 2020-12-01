@@ -101,6 +101,7 @@ func (r *Registry) Close() error {
 	for _, c := range r.Closers {
 		c.Close()
 	}
+	return nil
 }
 
 type Driver interface {
