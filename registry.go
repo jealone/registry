@@ -115,8 +115,10 @@ func InitRegistry(opts ...func() (*Registry, error)) error {
 	if nil == opts || 0 == len(opts) {
 
 		once.Do(func() {
+
 			defaultRegistry = &Registry{}
 			defaultRegistry.Drivers = make(map[string]Driver)
+
 		})
 
 		return nil
@@ -131,4 +133,49 @@ func InitRegistry(opts ...func() (*Registry, error)) error {
 		return err
 	}
 
+}
+
+func InitDefaultRegistry(decoder Decoder) {
+
+	registryConfigList := make([]Config, 1)
+
+	err := decoder.Decode(&registryConfigList)
+	if nil != err {
+		sli4go.Fatalf("parse yaml config for registry error: %s", err)
+	}
+
+	err = InitRegistry(func() (*Registry, error) {
+
+		if nil != err {
+			return nil, err
+		}
+
+		drivers := make(map[string]Driver)
+
+		for _, r := range registryConfigList {
+			switch r.GetType() {
+			case "file":
+				driverConfig := &FileDriverConfig{}
+				err = r.GetDriver().Decode(driverConfig)
+				if nil != err {
+					sli4go.Fatalf("parse yaml config for registry driver file error: %s", err)
+				}
+				driver, err := NewYamlFileDriver(driverConfig)
+				if nil != err {
+					sli4go.Fatalf("New registry driver (%s) from directory (%s) error: %s", driverConfig.GetName(), driverConfig.GetPath(), err)
+				}
+				drivers[driver.GetName()] = driver
+			default:
+				sli4go.Fatalf("unknown registry driver %s", r.GetType())
+			}
+		}
+
+		return &Registry{
+			Drivers: drivers,
+		}, nil
+	})
+
+	if nil != err {
+		sli4go.Fatal(err)
+	}
 }
